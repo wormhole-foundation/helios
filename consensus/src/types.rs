@@ -248,11 +248,12 @@ pub struct Header {
     pub body_root: Bytes32,
 }
 
-#[derive(Debug, Clone, Default, SimpleSerialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, SimpleSerialize, serde::Deserialize, serde::Serialize)]
 pub struct SyncCommittee {
     #[serde(deserialize_with = "pubkeys_deserialize")]
     pub pubkeys: Vector<BLSPubKey, 512>,
     #[serde(deserialize_with = "pubkey_deserialize")]
+    #[serde(serialize_with = "pubkey_serialize")]
     pub aggregate_pubkey: BLSPubKey,
 }
 
@@ -324,16 +325,13 @@ where
     Ok(Vector::from_iter(key_bytes))
 }
 
-/*
-fn pubkey_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+fn pubkey_serialize<S>(pubkey: &BLSPubKey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    let key = serde::Serialize::serialize(&pubkey, serializer)?;
-    let key_string = bytes_to_hex_str(&key).map_err(S::Error::custom)?;
-    Ok(String::from_iter(key_string))
+    let hex = bytes_to_hex_str(&pubkey.as_ref());
+    serializer.serialize_str(&hex)
 }
-*/
 
 fn pubkeys_deserialize<'de, D>(deserializer: D) -> Result<Vector<BLSPubKey, 512>, D::Error>
 where
@@ -350,19 +348,8 @@ where
 }
 
 /*
-fn pubkeys_serialize<'se, S>(serializer: S) -> Result<Vector<String, 512>, S::Error>
-where
-    S: serde::Serializer<'se>,
-{
-    let keys: Vec<BLSPubKey, 512> = serde::Serialize::serialize(serializer)?;
-    keys.iter()
-        .map(|key| {
-            let key_string = bytes_to_hex_str(key)?;
-            Ok(Vector::from_iter("0x" + key_string))
-        })
-        .collect::<Result<Vector<String, 512>>>()
-        .map_err(S::Error::custom)
-}
+* serializer has serialize-sequence. Loop over the pubkeys. then serialize sequence item by item
+* when you're finished, you need to call serializer end.
 */
 
 fn bytes_vector_deserialize<'de, D>(deserializer: D) -> Result<Vector<Bytes32, 33>, D::Error>
